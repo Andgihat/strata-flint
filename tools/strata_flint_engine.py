@@ -68,7 +68,9 @@ def main() -> int:
     ap.add_argument("--gpu", type=str, default="0", help="GPU id")
     ap.add_argument("--port", type=int, default=8199, help="Internal server port")
     ap.add_argument("--threads", type=int, default=12, help="CPU threads")
-    ap.add_argument("--n-cpu-moe", type=int, default=12, help="MoE layers offloaded to CPU RAM")
+    ap.add_argument("--n-cpu-moe", type=int, default=11, help="MoE layers offloaded to CPU RAM")
+    ap.add_argument("--cache-type-k", type=str, default="q8_0", help="KV cache K precision")
+    ap.add_argument("--cache-type-v", type=str, default="q8_0", help="KV cache V precision")
     ap.add_argument("--server-bin", type=str, default=None, help="llama-server binary path")
     ap.add_argument("--serve", action="store_true", help="Run in resident serve mode (Strata protocol)")
     ap.add_argument("--tokens", type=str, default=None, help="One-shot tokens list (test mode)")
@@ -100,8 +102,8 @@ def main() -> int:
         "--n-cpu-moe", str(args.n_cpu_moe),
         "--flash-attn", "on",
         "--fit", "off",
-        "--cache-type-k", "f16",
-        "--cache-type-v", "f16",
+        "--cache-type-k", str(args.cache_type_k),
+        "--cache-type-v", str(args.cache_type_v),
         "--threads", str(args.threads),
         "--batch-size", "512",
         "--ubatch-size", "512",

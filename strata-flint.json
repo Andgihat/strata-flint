@@ -8,9 +8,13 @@
   "--max-context",
   "32768",
   "--n-cpu-moe",
-  "12",
+  "11",
   "--threads",
   "12",
+  "--cache-type-k",
+  "q8_0",
+  "--cache-type-v",
+  "q8_0",
   "--port",
   "8199"
  ],
@@ -24,3 +28,4 @@
  "gpus_asked": true,
  "mtp": false
 }
+
