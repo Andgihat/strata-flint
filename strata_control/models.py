@@ -37,7 +37,7 @@ SHARD = re.compile(r"(.+)-(\d{5})-of-(\d{5})\.gguf\Z", re.I)
 SUPPORTED_SELECTIONS = frozenset({"qwen/Q2_0", "qwen/IQ2_XS", "qwen/IQ3_XXS", "qwen/IQ3_S",
                                    "swift/IQ2_XS", "swift/IQ3_XXS", "swift/IQ3_S", "coder/IQ1_M",
                                    "unsloth/UD-IQ4_XS", "unsloth/UD-Q4_K_XL", "unsloth/UD-Q5_K_XL", "unsloth/UD-Q6_K_XL",
-                                   "unsloth/Q8_0", "gyro/Gyro-S", "gyro/Gyro-M"})
+                                   "unsloth/Q8_0", "gyro/Gyro-S", "gyro/Gyro-M", "flint/Flint-40B"})
 
 
 def settings_path() -> Path:
@@ -808,10 +808,10 @@ def plan_import(raw_path: str) -> dict:
             observed_experts.update(inspected["expert_tensor_types"])
             observed_tensor_count += inspected["tensor_count_scanned"]
             observed_payload += int(inspected.get("payload_bytes_required") or 0)
-            if inspected["architecture"] is not None and inspected["architecture"] != "qwen4exp":
+            if inspected["architecture"] is not None and inspected["architecture"] not in ("qwen4exp", "flint"):
                 issues.append(f"{item.name}: unsupported_architecture")
     if metadata is not None:
-        if metadata["architecture"] != "qwen4exp":
+        if metadata["architecture"] not in ("qwen4exp", "flint"):
             issues.append("unsupported_or_missing_architecture")
         if metadata["tokenizer_model"] != "gpt2" or not metadata["tokenizer_tokens_present"] or \
                 not metadata["tokenizer_merges_present"]:
