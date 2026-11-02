@@ -4,7 +4,8 @@ setlocal enabledelayedexpansion
 title Flint 40B MoE (Strata Tiered Engine)
 
 set "PORT=8081"
-set "FORK_DIR=E:\AI-models\strata-fork"
+set "FORK_DIR=%~dp0"
+if "%FORK_DIR:~-1%"=="\" set "FORK_DIR=%FORK_DIR:~0,-1%"
 
 echo.
 echo ============================================================

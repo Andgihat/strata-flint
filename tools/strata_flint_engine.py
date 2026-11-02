@@ -24,8 +24,24 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-DEFAULT_BIN = Path(r"E:\AI-models\llm-server-build\src-bee-v046\build-flint\bin\llama-server.exe")
-DEFAULT_MODEL = Path(r"E:\AI-models\models\flint\flint-UD-Q3_K_XL.gguf")
+HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parent
+
+CANDIDATE_BINS = [
+    REPO_ROOT / "bin" / "llama-server.exe",
+    Path(r"E:\AI-models\llm-server-build\src-bee-v046\build-flint\bin\llama-server.exe"),
+    REPO_ROOT.parent / "llm-server-build" / "src-bee-v046" / "build-flint" / "bin" / "llama-server.exe",
+]
+
+CANDIDATE_MODELS = [
+    REPO_ROOT / "models" / "flint" / "flint-UD-Q3_K_XL.gguf",
+    REPO_ROOT / "models" / "flint-UD-Q3_K_XL.gguf",
+    Path(r"E:\AI-models\models\flint\flint-UD-Q3_K_XL.gguf"),
+    REPO_ROOT.parent / "models" / "flint" / "flint-UD-Q3_K_XL.gguf",
+]
+
+DEFAULT_BIN = next((b for b in CANDIDATE_BINS if b.exists()), CANDIDATE_BINS[0])
+DEFAULT_MODEL = next((m for m in CANDIDATE_MODELS if m.exists()), CANDIDATE_MODELS[0])
 
 
 def log_err(msg: str):

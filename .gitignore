@@ -9,3 +9,8 @@ packs/
 *.pack
 *.gguf
 !data/experimental-speed-projection/*.gguf
+
+bin/*.exe
+bin/*.dll
+*.zip
+
