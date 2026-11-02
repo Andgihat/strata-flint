@@ -89,6 +89,9 @@ def main() -> int:
     ap.add_argument("--cache-type-v", type=str, default="q8_0", help="KV cache V precision")
     ap.add_argument("--ctx-checkpoints", type=int, default=None, help="Context checkpoints")
     ap.add_argument("--cache-ram", type=int, default=None, help="Host RAM cache in MiB")
+    ap.add_argument("--batch-size", type=int, default=2048, help="Logical batch size")
+    ap.add_argument("--ubatch-size", type=int, default=1024, help="Physical micro-batch size")
+    ap.add_argument("--kvarn-window-chunk", type=int, default=None, help="KVarN window chunk")
     ap.add_argument("--server-bin", type=str, default=None, help="llama-server binary path")
     ap.add_argument("--serve", action="store_true", help="Run in resident serve mode (Strata protocol)")
     ap.add_argument("--tokens", type=str, default=None, help="One-shot tokens list (test mode)")
@@ -126,10 +129,7 @@ def main() -> int:
     # At >= 65K tokens, we use KVarN / Host RAM checkpointing so KV stays compact in VRAM (~1 GB)
     ctk = args.cache_type_k
     ctv = args.cache_type_v
-    if max_context >= 65536 and ctk == "q8_0" and ctv == "q8_0":
-        # If user didn't explicitly override KV, auto-tier with kvarn3/kvarn2 for maximum VRAM headroom
-        ctk = "kvarn3"
-        ctv = "kvarn2"
+
 
     cmd = [
         str(server_bin),
@@ -142,8 +142,8 @@ def main() -> int:
         "--cache-type-k", str(ctk),
         "--cache-type-v", str(ctv),
         "--threads", str(args.threads),
-        "--batch-size", "512",
-        "--ubatch-size", "512",
+        "--batch-size", str(args.batch_size),
+        "--ubatch-size", str(args.ubatch_size),
         "--parallel", "1",
         "--host", "127.0.0.1",
         "--port", str(internal_port),
@@ -155,6 +155,8 @@ def main() -> int:
         checkpoints = args.ctx_checkpoints if args.ctx_checkpoints is not None else 16
         cache_ram = args.cache_ram if args.cache_ram is not None else 8192
         cmd.extend(["--ctx-checkpoints", str(checkpoints), "--cache-ram", str(cache_ram)])
+    if args.kvarn_window_chunk is not None:
+        cmd.extend(["--kvarn-window-chunk", str(args.kvarn_window_chunk)])
 
     log_err(f"Launching Flint backend: {' '.join(cmd[:6])} ... on port {internal_port}")
     proc = subprocess.Popen(

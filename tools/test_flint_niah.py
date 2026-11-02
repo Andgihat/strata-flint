@@ -116,7 +116,7 @@ def run_benchmark(target_chars=250000, needle_depth=0.5):
         ],
         "temperature": 0.0,
         "max_tokens": 512,
-        "reasoning_budget_tokens": 128
+        "reasoning_budget_tokens": 256
     }
 
     req_data = json.dumps(payload).encode("utf-8")
