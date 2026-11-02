@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+*.tmp
+.cache/
+pack/
+packs/
+*.pack
+*.gguf
+!data/experimental-speed-projection/*.gguf
