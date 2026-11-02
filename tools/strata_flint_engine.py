@@ -68,9 +68,11 @@ def main() -> int:
     ap.add_argument("--gpu", type=str, default="0", help="GPU id")
     ap.add_argument("--port", type=int, default=8199, help="Internal server port")
     ap.add_argument("--threads", type=int, default=12, help="CPU threads")
-    ap.add_argument("--n-cpu-moe", type=int, default=11, help="MoE layers offloaded to CPU RAM")
+    ap.add_argument("--n-cpu-moe", type=int, default=None, help="MoE layers offloaded to CPU RAM")
     ap.add_argument("--cache-type-k", type=str, default="q8_0", help="KV cache K precision")
     ap.add_argument("--cache-type-v", type=str, default="q8_0", help="KV cache V precision")
+    ap.add_argument("--ctx-checkpoints", type=int, default=None, help="Context checkpoints")
+    ap.add_argument("--cache-ram", type=int, default=None, help="Host RAM cache in MiB")
     ap.add_argument("--server-bin", type=str, default=None, help="llama-server binary path")
     ap.add_argument("--serve", action="store_true", help="Run in resident serve mode (Strata protocol)")
     ap.add_argument("--tokens", type=str, default=None, help="One-shot tokens list (test mode)")
@@ -94,12 +96,25 @@ def main() -> int:
     internal_port = args.port
     max_context = args.max_context
 
+    # Smart Tiered memory planning based on context size for 16GB VRAM
+    if args.n_cpu_moe is not None:
+        ncmoe = args.n_cpu_moe
+    else:
+        if max_context >= 250000:
+            ncmoe = 21
+        elif max_context >= 180000:
+            ncmoe = 19
+        elif max_context >= 65536:
+            ncmoe = 15
+        else:
+            ncmoe = 11
+
     cmd = [
         str(server_bin),
         "-m", str(model_path),
         "--ctx-size", str(max_context),
         "--n-gpu-layers", "999",
-        "--n-cpu-moe", str(args.n_cpu_moe),
+        "--n-cpu-moe", str(ncmoe),
         "--flash-attn", "on",
         "--fit", "off",
         "--cache-type-k", str(args.cache_type_k),
@@ -113,6 +128,11 @@ def main() -> int:
         "--alias", "flint",
         "--log-disable"
     ]
+
+    if max_context >= 65536 or args.ctx_checkpoints is not None:
+        checkpoints = args.ctx_checkpoints if args.ctx_checkpoints is not None else 16
+        cache_ram = args.cache_ram if args.cache_ram is not None else 8192
+        cmd.extend(["--ctx-checkpoints", str(checkpoints), "--cache-ram", str(cache_ram)])
 
     log_err(f"Launching Flint backend: {' '.join(cmd[:6])} ... on port {internal_port}")
     proc = subprocess.Popen(
