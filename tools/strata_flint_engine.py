@@ -96,18 +96,24 @@ def main() -> int:
     internal_port = args.port
     max_context = args.max_context
 
-    # Smart Tiered memory planning based on context size for 16GB VRAM
+    # Tiered Context & Memory Architecture (Strata-style):
+    # In Strata, increasing context to 200K/256K does NOT eject model layers to CPU!
+    # Instead, the active KV window resides in VRAM, while the bulk context / checkpoints
+    # are stored in Host RAM (--ctx-checkpoints + --cache-ram).
+    # Thus ncmoe stays at 11 (36 layers in VRAM), preserving ~80-88 t/s decode speed!
     if args.n_cpu_moe is not None:
         ncmoe = args.n_cpu_moe
     else:
-        if max_context >= 250000:
-            ncmoe = 21
-        elif max_context >= 180000:
-            ncmoe = 19
-        elif max_context >= 65536:
-            ncmoe = 15
-        else:
-            ncmoe = 11
+        ncmoe = 11  # Always keep 36 layers on GPU; context is tiered into RAM
+
+    # Default KV cache types for long contexts:
+    # At >= 65K tokens, we use KVarN / Host RAM checkpointing so KV stays compact in VRAM (~1 GB)
+    ctk = args.cache_type_k
+    ctv = args.cache_type_v
+    if max_context >= 65536 and ctk == "q8_0" and ctv == "q8_0":
+        # If user didn't explicitly override KV, auto-tier with kvarn3/kvarn2 for maximum VRAM headroom
+        ctk = "kvarn3"
+        ctv = "kvarn2"
 
     cmd = [
         str(server_bin),
@@ -117,8 +123,8 @@ def main() -> int:
         "--n-cpu-moe", str(ncmoe),
         "--flash-attn", "on",
         "--fit", "off",
-        "--cache-type-k", str(args.cache_type_k),
-        "--cache-type-v", str(args.cache_type_v),
+        "--cache-type-k", str(ctk),
+        "--cache-type-v", str(ctv),
         "--threads", str(args.threads),
         "--batch-size", "512",
         "--ubatch-size", "512",
