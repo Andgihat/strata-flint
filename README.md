@@ -1,23 +1,19 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="apps/host/public/brand/strata-lockup-dark.svg">
-    <img src="apps/host/public/brand/strata-lockup-light.svg" alt="Strata" width="340">
+    <img src="apps/host/public/brand/strata-lockup-light.svg" alt="Strata Flint" width="340">
   </picture>
 </p>
 
-<h3 align="center">Run powerful AI on your own computer.</h3>
-<p align="center">Chat, code and work with images, locally.</p>
+<h1 align="center">Strata Flint</h1>
+<h3 align="center">High-Performance Native C++/CUDA Inference Engine for Flint 40B Preview MoE</h3>
+<p align="center">Batched Tensor Core Prefill (~1,238 tok/s) · 3-Tier 256K Context Ring · CUDA Graph Replay · Dynamic MoE Swapping</p>
 
 <p align="center">
-  <a href="#models">Models</a> · <a href="#install"><b>Install</b></a> ·
-  <a href="#hardware">Hardware</a> · <a href="#tools">Tools</a> ·
-  <a href="#help">Help</a> · <a href="#support-strata">Support</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/Niko1221/Strata/releases/latest"><img src="https://img.shields.io/github/v/release/Niko1221/Strata?label=download&color=0ab887" alt="Download Strata"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Niko1221/Strata" alt="MIT license"></a>
-  <a href="https://buymeacoffee.com/strataengine"><img src="https://img.shields.io/badge/Buy_me_a_coffee-FFDD00?logo=buymeacoffee&logoColor=000" alt="Support Strata on Buy Me a Coffee"></a>
+  <a href="https://github.com/Andgihat/strata-flint/releases/latest"><img src="https://img.shields.io/github/v/release/Andgihat/strata-flint?label=release&color=0ab887" alt="Release v1.2.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Andgihat/strata-flint" alt="MIT license"></a>
+  <a href="#benchmarks-rtx-5060-ti-16gb--ryzen-5-9600x--tensor-core-prefill--3-tier-kv-cache"><img src="https://img.shields.io/badge/prefill-1238_tok%2Fs-blue" alt="Prefill Speed"></a>
+  <a href="#benchmarks-rtx-5060-ti-16gb--ryzen-5-9600x--tensor-core-prefill--3-tier-kv-cache"><img src="https://img.shields.io/badge/context-256K-purple" alt="256K Context"></a>
 </p>
 
 <p align="center"><sub><b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português</a> · <a href="README.pl.md">Polski</a></sub></p>
