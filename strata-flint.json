@@ -1,22 +1,14 @@
 {
- "exe": "E:\\AI-models\\strata-fork\\bin\\strata-flint.cmd",
+ "exe": "E:\\AI-models\\strata-fork\\bin\\strata-flint.exe",
  "args": [
   "--native",
   "E:\\AI-models\\models\\flint\\flint-UD-Q3_K_XL.gguf",
-  "--pack",
-  "E:\\AI-models\\packs\\flint-40b-test",
   "--max-context",
-  "32768",
-  "--n-cpu-moe",
-  "11",
-  "--threads",
-  "12",
-  "--cache-type-k",
-  "q8_0",
-  "--cache-type-v",
-  "q8_0",
-  "--port",
-  "8199"
+  "8192",
+  "--chunk",
+  "1024",
+  "--margin",
+  "1.0"
  ],
  "cwd": "E:\\AI-models\\strata-fork",
  "tokenizer": "E:\\AI-models\\packs\\flint-40b-test\\tokenizer",
@@ -28,4 +20,3 @@
  "gpus_asked": true,
  "mtp": false
 }
-
