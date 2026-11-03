@@ -1,59 +1,238 @@
-# Strata (Flint 40B Edition)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/host/public/brand/strata-lockup-dark.svg">
+    <img src="apps/host/public/brand/strata-lockup-light.svg" alt="Strata Flint" width="340">
+  </picture>
+</p>
 
-Fork of [Strata](https://github.com/strata-ai/strata) with native support for **Flint 40B MoE** (39.8B total / ~2.5B active, 256 routed + 2 shared experts) and **Tiered KV Context Streaming** up to 262,144 tokens (256K).
+<h1 align="center">Strata Flint</h1>
+<h3 align="center">High-Performance Native C++/CUDA Inference Engine for Flint 40B Preview MoE</h3>
+<p align="center">Batched Tensor Core Prefill (~1,238 tok/s) · 3-Tier 256K Context Ring · CUDA Graph Replay · Dynamic MoE Swapping</p>
 
-![Architecture](https://img.shields.io/badge/Architecture-Recursive_MoE_256E-blue)
-![GPU](https://img.shields.io/badge/VRAM-16GB_Compatible-success)
-![Speed](https://img.shields.io/badge/Decode-80--88_t%2Fs-brightgreen)
-![Context](https://img.shields.io/badge/Context-256K_Tiered-orange)
+<p align="center">
+  <a href="https://github.com/Andgihat/strata-flint/releases/latest"><img src="https://img.shields.io/github/v/release/Andgihat/strata-flint?label=release&color=0ab887" alt="Release v1.2.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Andgihat/strata-flint" alt="MIT license"></a>
+  <a href="#benchmarks-rtx-5060-ti-16gb--ryzen-5-9600x--tensor-core-prefill--3-tier-kv-cache"><img src="https://img.shields.io/badge/prefill-1238_tok%2Fs-blue" alt="Prefill Speed"></a>
+  <a href="#benchmarks-rtx-5060-ti-16gb--ryzen-5-9600x--tensor-core-prefill--3-tier-kv-cache"><img src="https://img.shields.io/badge/context-256K-purple" alt="256K Context"></a>
+</p>
 
----
+<p align="center"><sub><b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português</a> · <a href="README.pl.md">Polski</a></sub></p>
 
-## 🌟 Key Features of this Fork
+**Free, open source, and yours to run.** Use Strata on your desktop or with your favorite coding tools. No account needed.
 
-1. **Native Flint 40B Support**:
-   - Pack builder (`tools/flint_pack.py`) to extract embeddings, projection weights, tokenizer and MoE index from `flint-UD-Q3_K_XL.gguf`.
-   - Fingerprint registration in `data/gguf_fingerprints.json` and model definitions in `strata_control/models.py`.
-2. **Strata Modular Engine (`tools/strata_flint_engine.py`)**:
-   - Implements the Strata Engine Line Protocol (`READY`, `GEN`, `T`, `PP`, `DONE`, `STOP`).
-   - Seamless integration with Strata's OpenAI API server (`serve/server.py`) and Web Chat UI.
-3. **Tiered KV Context Streaming (up to 256K)**:
-   - Eliminates CPU layer eviction: preserves all 36 MoE layers on GPU (`ncmoe = 11`) regardless of context size.
-   - 32K resident KV window in VRAM (~1.0–1.3 GB) combined with Host RAM checkpointing (`--ctx-checkpoints 16 --cache-ram 8192`).
-   - Sustained **~80–88 t/s** decode speed across 32K, 200K, and 256K context lengths on consumer 16GB cards (RTX 5060 Ti).
+## Models
 
----
+We recommend **ISTA-DASLab first**, then **Unsloth** and other providers, where a compatible model fits.
 
-## 🚀 Benchmarks (RTX 5060 Ti 16GB + Ryzen 5 9600X)
+<details open>
+<summary>⚡ &nbsp;<b>Flint 40B Preview (256 MoE Experts) — Native C++/CUDA Engine</b></summary>
 
-| Mode | Context Limit | KV Quant | Layers in VRAM | Layers in RAM (`ncmoe`) | Tiered Memory Layout | Decode Speed | Prefill Speed | VRAM Footprint |
-| :--- | :---: | :---: | :---: | :---: | :--- | :---: | :---: | :---: |
-| **32K Turbo** | 32,768 | `q8_0` | **36** | 11 | Full VRAM | **~88.9 t/s** | ~1,188 t/s | ~14.8 GB |
-| **200K Tiered** | 204,800 | `kvarn3/2` | **36** | 11 | VRAM (1.0 GB) + RAM (8 GB) | **~85–88 t/s** | ~900+ t/s | ~14.4 GB |
-| **256K Tiered** | 262,144 | `kvarn3/2` | **36** | 11 | VRAM (1.3 GB) + RAM (8 GB) | **~80–85 t/s** | ~850+ t/s | ~14.7 GB |
+**High-performance native C++/CUDA inference engine for Flint 40B Preview (`flint-UD-Q3_K_XL.gguf`), compiled for NVIDIA Blackwell (`sm_120`), Ada (`sm_89`), Ampere (`sm_86`), Turing (`sm_75`) and CUDA 12.8.**
 
----
+* **Total Architecture**: 49 layers (2 dense + 47 MoE), 256 fine-grained MoE routed experts (`top-k = 6`) + 2 shared experts.
+* **Prefill Acceleration**: **Batched Tensor Core GEMM Attention** (`cublasGemmStridedBatchedEx` + `k_flint_kv_unpack_f16` + `k_flint_attn_softmax16`) with sliding window (513) and permanent sinks ($0..3$), delivering **up to 1,238 tok/s** (+188% speedup).
+* **3-Tier Sliding Window KV Cache**: Enables massive **256K (262,144 tokens) context** on 16GB GPUs without VRAM OOM by maintaining an active 32,768-token Hot Ring in VRAM (1.63 GiB Q8_0) and persisting full context in pinned Host RAM (13.02 GiB).
+* **CUDA Graph Replay for Decode**: Single-token decode captured into hardware execution graphs (`cudaGraphLaunch`), eliminating Windows CPU driver dispatch latency and sustaining **88.6 – 90.4 tok/s**.
+* **Dynamic Adaptive MoE Expert Swapping**: On-device atomic tracking of true router picks (`k_count_usage`) with safe miss zeroing (`k_clear_miss`), dynamically hot-swapping active experts over PCIe Gen4 (56 µs per expert) without recompiling CUDA graphs.
+* **Server Protocol & Multi-Turn**: Native `strata --serve` line-protocol implementation (`READY`, `GEN`, `PP`, `T`, `DONE`, `RESET`, `QUIT`), compatible with `serve/server.py` OpenAI API (`/v1/chat/completions`) and Web Chat UI. Fully tested on continuous multi-turn conversations up to 10,000+ context length.
 
-## 📦 Quick Start
+#### Benchmarks (RTX 5060 Ti 16GB + Ryzen 5 9600X) — Tensor Core Prefill & 3-Tier KV Cache
+| Model | Context Limit | KV Cache Footprint | VRAM Resident Experts | Decode Speed | Prefill Speed | Total VRAM |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Flint 40B Preview UD-Q3_K_XL** | 8,192 | **0.41 GiB** (Q8_0) | **158 / 256 (61.8%)** | **90.4 tok/s** | **~1,238 tok/s** | ~11.2 GB |
+| **Flint 40B Preview UD-Q3_K_XL** | 32,768 | **1.63 GiB** (Q8_0) | **113 / 256 (44.3%)** | **89.5 – 90.4 tok/s** | **~1,225 tok/s** | ~12.5 GB |
+| **Flint 40B Preview UD-Q3_K_XL** | 65,536 *(Multi-turn 10K+)* | **1.63 GiB Ring** + Host RAM | **113 / 256 (Adaptive)** | **88.6 – 90.4 tok/s** | **~1,194 tok/s** *(5K)*<br>**~920 tok/s** *(10K)* | ~13.5 GB |
+| **Flint 40B Preview UD-Q3_K_XL** | 262,144 *(256K Context)* | **1.63 GiB Ring** + 13.0 GiB RAM | **113 / 256 (Adaptive)** | **88.6 tok/s** | **1,068.5 tok/s** | **~13.5 GB** *(0 OOM)* |
 
-### 1. Build the Flint Pack
-```powershell
-python tools/flint_pack.py --model E:\AI-models\models\flint\flint-UD-Q3_K_XL.gguf --output E:\AI-models\packs\flint-40b
-```
+* **Hardware-Accelerated Q8_0 KV Cache & 3-Tier Ring**: 4x compression over FP32 (1.63 GiB vs 6.57 GiB at 32K context). Coupled with Flint's per-head QK-RMSNorm, 8-bit quantization preserves full precision ($\Delta\text{PPL} < 0.001$) while Host RAM holds full 256K context history without filling GPU VRAM.
 
-### 2. Launch Flint via Strata Launcher
-Run the interactive launcher:
+#### Quick Start
 ```cmd
+# Run interactive server launcher with Web UI & OpenAI API:
 .\start-flint.bat
+
+# Or run the native C++/CUDA CLI binary directly:
+.\build\Release\strata-flint.exe --model E:\AI-models\models\flint\flint-UD-Q3_K_XL.gguf --max-context 65536 --kv-resident 32768 --chunk 1024 --adapt-every 16 --adapt-swaps 8 -n 128
 ```
-Select mode:
-* `[1]` **256K Context** (Tiered VRAM/RAM, ~80–85 t/s)
-* `[2]` **200K Context** (Tiered VRAM/RAM, ~85–88 t/s)
-* `[3]` **32K Context** (Turbo VRAM, ~88 t/s)
 
-OpenAI API will be available at `http://127.0.0.1:8081/v1` and Web UI at `http://127.0.0.1:8081/`.
+#### Build from Source (CMake + MSVC + CUDA 12.8)
 
----
+**Universal Fat Binary (supports RTX 20xx / 30xx / 40xx / 50xx simultaneously):**
+```powershell
+cmake -B build -G "Visual Studio 17 2022" -A x64 -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="75;86;89;120"
+cmake --build build --config Release --target strata-flint
+```
 
-## 📄 License
-This fork is distributed under the Apache License 2.0, matching the upstream repository.
+**Single-Architecture Build (for your specific GPU, e.g. Blackwell sm_120):**
+```powershell
+cmake -B build -G "Visual Studio 17 2022" -A x64 -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="120"
+cmake --build build --config Release --target strata-flint
+```
+
+</details>
+
+
+<details>
+<summary><img src="docs/media/models/qwen.svg" width="22" alt="" align="middle"> &nbsp;<b>Qwen3.8-Flash-Next</b></summary>
+
+| Provider | Choices |
+| --- | --- |
+| **ISTA-DASLab · recommended** | Q2\_0, IQ2\_XS, IQ3\_XXS, IQ3\_S. [Coder: IQ1\_M](docs/MODELS.md#coder) for coding. |
+| **Unsloth** | UD-IQ4\_XS, UD-Q4\_K\_XL, UD-Q5\_K\_XL, UD-Q6\_K\_XL, Q8\_0 |
+| **Gyro · agentionai** | [Gyro-S, Gyro-M](https://huggingface.co/agentionai/Qwen3.8-Flash-Next-Gyro-GGUF). Lower memory use but slower. |
+| **Other options** | [Swift 1.5](docs/MODELS.md#swift-15), [NVFP4](docs/NVFP4.md), [OrcaRouter](docs/ORCA.md) |
+
+[Compare sizes, memory needs and compatibility](docs/MODELS.md).
+
+</details>
+
+<details>
+<summary><img src="docs/media/models/qwen.svg" width="22" alt="" align="middle"> &nbsp;<b>Qwen3.6-35B-A3B</b></summary>
+
+**Unsloth:** UD-Q4_K_XL, UD-Q6_K_XL, Q8_0. These are the currently documented packs for this model.
+
+[Model guide and compatibility](docs/QWEN36.md).
+
+</details>
+
+<details>
+<summary><img src="docs/media/models/deepseek.svg" width="22" alt="" align="middle"> &nbsp;<b>DeepSeekV4.1-Flash-1017</b></summary>
+
+In the **desktop app** and the **Terminal**. What does not fit in memory is read from your SSD, so it needs a lot of free
+disk space.
+
+| Set (IST-DAS) | Download | Free disk needed |
+| --- | ---: | ---: |
+| 1.75 bpw | 239 GB | about 245 GB |
+| 2.00 bpw | 257 GB | about 265 GB |
+| 2.25 bpw | 274 GB | about 280 GB |
+
+Runs on NVIDIA RTX 30, 40 and 50 series (Windows and Linux), AMD Radeon AI PRO R9700 (Linux), AMD Ryzen AI Max — Strix Halo
+(Windows), and Apple Silicon Macs with 64 GB or more, text only ([Mac](docs/DEEPSEEK_MAC.md)). Setup downloads the files and the DeepSeek engine, then starts the model.
+
+```sh
+strata launch --family deepseek41 --model ist-das-2.00bpw --plan
+```
+
+Measured with the 2.00 bpw set on Strata 0.2.5 (Strix Halo: 0.2.7). Output is the speed of the answer, prompt is how fast Strata reads your input.
+
+| Hardware | Output | Prompt |
+| --- | ---: | ---: |
+| RTX 5070 12 GB, 64 GB RAM | 4 to 6 tokens/s | about 110 tokens/s (4K) |
+| RTX 3060 12 GB, 46 GB RAM | 9 to 11 tokens/s | about 155 tokens/s (4K) |
+| 1x Radeon AI PRO R9700, 251 GB RAM | 21 to 25 tokens/s | 320 to 360 tokens/s (8K) |
+| 4x Radeon AI PRO R9700 | 74 to 77 tokens/s | 400 to 450 tokens/s (8K) |
+| Ryzen AI Max+ 395 (Strix Halo), 128 GB unified | 19 to 21 tokens/s (code), 11 (chat) | 87 tokens/s (4K), 125 tokens/s (8K) |
+
+[Memory, disk and details](docs/DEEPSEEK41.md) · [Release notes](https://github.com/Niko1221/Strata/releases)
+
+</details>
+
+<a id="the-other-sizes"></a>
+
+Not sure what fits? [Choose a model for your computer](docs/MODELS.md#pick-by-memory).
+
+## Install
+
+<a id="option-a-the-strata-app"></a>
+
+### Desktop app
+
+**[Download Strata for Windows, Linux or Mac →](https://github.com/Niko1221/Strata/releases/latest)**
+
+Install the app, choose a model, and start chatting. There is one installer for each system. On first start the app
+downloads the engine for your graphics card. [Help with the installer](docs/INSTALL.md#the-app).
+
+<sub>Files: `Strata-0.2.9-windows-x64-setup.exe` · `Strata-0.2.9-linux-x86_64.AppImage` · `Strata-0.2.9-macos-arm64.dmg`</sub>
+
+<p align="center">
+  <img src="docs/media/app-chat.png" width="900" alt="Strata desktop app with a chat and live code preview side by side">
+  <br><sub>Chat, files and a live preview in one window.</sub>
+</p>
+
+<a id="option-b-the-terminal-one-line"></a>
+
+### Terminal app
+
+Prefer the terminal? Install Strata, then run **`strata launch`**.
+
+<details open>
+<summary><b>Install commands</b></summary>
+
+**Linux / Mac**
+
+```sh
+curl -fsSL https://github.com/Niko1221/Strata/releases/latest/download/install.sh -o install.sh && sh install.sh
+```
+
+**Windows PowerShell**
+
+```powershell
+irm https://github.com/Niko1221/Strata/releases/latest/download/install.ps1 | iex
+```
+
+On Windows, open a new terminal afterwards. Then:
+
+```sh
+strata launch
+```
+
+Follow the prompts to download and start a model. [Terminal guide](docs/TERMINAL_LAUNCH.md).
+
+</details>
+
+<p align="center">
+  <img src="docs/media/terminal-monitor.png" width="900" alt="Strata terminal app showing model activity, speed, memory and recent requests">
+  <br><sub>Watch your model and hardware while it runs.</sub>
+</p>
+
+<a id="build-from-source"></a>
+
+[Build from source](docs/SOURCE_INSTALL.md) · [Docker](docs/DOCKER.md) · [Full install guide](docs/INSTALL.md)
+
+<a id="what-you-need"></a>
+
+## Hardware
+
+| Supported hardware | Guide |
+| --- | --- |
+| **NVIDIA GeForce RTX 20 / 30 / 40 / 50 series** | [NVIDIA setup](docs/INSTALL.md#what-you-need) |
+| **AMD Radeon RX 7700 / 7800 / 7900, RX 9060 / 9070, AI PRO R9700** | [AMD setup](docs/AMD_HIP.md) |
+| **AMD Radeon RX 6800 / 6900 · experimental** | [RX 6000 setup](docs/AMD_HIP.md#rdna2-gfx1030) |
+| **Intel Arc · Linux** | [Intel setup](docs/INTEL_ARC.md) |
+| **Apple Silicon · M1 or newer** | [Mac setup](docs/MAC.md) |
+| **AMD Ryzen AI Max · Strix Halo** | [Strix Halo setup](docs/STRIX_HALO.md) |
+| **NVIDIA DGX Spark · Linux** | [DGX Spark setup](docs/DGX_SPARK_LINUX.md) |
+
+<a id="using-it"></a>
+
+## Tools
+
+**Claude Code · Codex CLI · OpenCode · oh-my-pi · pi.dev · Hermes Agent · OpenClaw**, and more through the OpenAI- and Anthropic-compatible APIs.
+
+Run **`strata connect`** to see setup instructions for your tool. [Connection guide](docs/TERMINAL_LAUNCH.md#connect-your-apps-strata-connect).
+
+<a id="guides"></a>
+<a id="how-fast-is-it"></a>
+<a id="how-does-it-work"></a>
+<a id="something-went-wrong"></a>
+
+## Help
+
+[All guides](docs) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Report a bug](https://github.com/Niko1221/Strata/issues/new/choose) ·
+[Benchmarks](docs/COMMUNITY_BENCHMARKS.md) · [How it works](docs/HOW_IT_WORKS.md) · [Contribute](CONTRIBUTING.md)
+
+## Support Strata
+
+**Help keep local AI open to everyone.** A coffee helps fund development and testing on more hardware.
+
+<a href="https://buymeacoffee.com/strataengine"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee: support Strata" height="48"></a>
+
+[MIT license](LICENSE) · [Credits and model licenses](docs/HOW_IT_WORKS.md#credits) · [Privacy](docs/SAFETY.md)
+
+<a id="option-c-let-your-ai-set-it-up"></a>
+
+<sub>For AI tools and automated readers: <a href="AGENTS.md">technical reference</a> · <a href="docs/AI_SETUP.md">setup instructions</a>.</sub>
+
+**Sponsorships, hardware partnerships or collaborations:** [niko.veit@outlook.com](mailto:niko.veit@outlook.com).
+
